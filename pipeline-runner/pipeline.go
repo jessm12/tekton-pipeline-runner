@@ -1,13 +1,3 @@
-/*******************************************************************************
- * Licensed Materials - Property of IBM
- * "Restricted Materials of IBM"
- *
- * Copyright IBM Corp. 2018 All Rights Reserved
- *
- * US Government Users Restricted Rights - Use, duplication or disclosure
- * restricted by GSA ADP Schedule Contract with IBM Corp.
- *******************************************************************************/
-
 package endpoints
 
 import (
@@ -33,7 +23,7 @@ type Resource struct {
 	K8sClient      *k8sclientset.Clientset
 }
 
-//BuildInformation - information required to build a particular commit from a Git repository.
+//BuildInformation - information required to build a particular commit from a Git repository
 type BuildInformation struct {
 	REPOURL   string
 	SHORTID   string
@@ -55,7 +45,6 @@ type BuildRequest struct {
 	COMMITID string `json:"commitid"`
 	REPONAME string `json:"reponame"`
 	BRANCH   string `json:"branch"`
-	// todo do we need PATH for this as well now?
 }
 
 func (r Resource) RegisterWebhook(container *restful.Container) {
@@ -110,16 +99,11 @@ func definePipelineResource(name, namespace string, params []v1alpha1.Param, res
 	return resourcePointer
 }
 
-// Todo add endpoint for creating pipelineruns: give it some json: name of the pipeline, timeout, perhaps even pipeline params ;)
-
-// Todo make the timeout a param and do *desired timeout in seconds* * time.Second
-// Todo pass in a big ol' struct instead
 func definePipelineRun(pipelineRunName, namespace, saName string,
 	pipeline v1alpha1.Pipeline,
 	triggerType v1alpha1.PipelineTriggerType,
 	resourceBinding []v1alpha1.PipelineResourceBinding) *v1alpha1.PipelineRun {
 
-	// Todo test this is deployed ok, accept more params (resources) and use
 	startTime := time.Now()
 
 	pipelineRunData := v1alpha1.PipelineRun{
@@ -140,7 +124,6 @@ func definePipelineRun(pipelineRunName, namespace, saName string,
 			Resources:      resourceBinding,
 		},
 
-		// We think the flow here is: Ready -> Running -> can be cancelled by sending an update: PipelineRunCancelled
 		Status: v1alpha1.PipelineRunStatus{
 			Conditions: []duckv1alpha1.Condition{{Type: duckv1alpha1.ConditionReady}},
 			StartTime:  &metav1.Time{Time: startTime},
@@ -155,8 +138,8 @@ func getDateTimeAsString() string {
 }
 
 // Caller needs to handle error and not pipeline ref being valid
-func (r Resource) getPipelineImpl(name, namespace string) (v1alpha1.Pipeline, error) {
-	fmt.Printf("In getPipelineImpl, name %s, namespace %s \n", name, namespace)
+func (r Resource) getPipeline(name, namespace string) (v1alpha1.Pipeline, error) {
+	fmt.Printf("In getPipeline, name %s, namespace %s \n", name, namespace)
 
 	pipelines := r.PipelineClient.Pipelines(namespace)
 	pipeline, err := pipelines.Get(name, metav1.GetOptions{})
@@ -187,16 +170,13 @@ func submitBuild(buildInformation BuildInformation, r Resource) {
 	imageResourceName := fmt.Sprintf("docker-image-%d", startTime)
 	gitResourceName := fmt.Sprintf("git-source-%d", startTime)
 
-	pipeline, err := r.getPipelineImpl(pipelineTemplateName, pipelineNs)
+	pipeline, err := r.getPipeline(pipelineTemplateName, pipelineNs)
 	if err != nil {
 		fmt.Printf("Couldn't find the pipeline template %s in namespace %s \n", pipelineTemplateName, pipelineNs)
 		return
 	} else {
 		fmt.Printf("Found the pipeline template %s OK \n", pipelineTemplateName)
 	}
-
-	// We don't want to modify an existing pipeline as this may be in use
-	// We actually want to create a new pipeline that uses the new resources
 
 	fmt.Println("Creating resources next...")
 
@@ -224,10 +204,9 @@ func submitBuild(buildInformation BuildInformation, r Resource) {
 	gitResourceRef := v1alpha1.PipelineResourceRef{Name: gitResourceName}
 	imageResourceRef := v1alpha1.PipelineResourceRef{Name: imageResourceName}
 
-	//resources := []v1alpha1.PipelineResourceBinding{{Name: imageResourceName, ResourceRef: imageResourceRef}, {Name: gitResourceName, ResourceRef: gitResourceRef}}
 	resources := []v1alpha1.PipelineResourceBinding{{Name: "docker-image", ResourceRef: imageResourceRef}, {Name: "git-source", ResourceRef: gitResourceRef}}
 
-	// PipelineRun yaml defines references to resources
+	// PipelineRun yaml defines references to resources by name
 	pipelineRunData := definePipelineRun(generatedPipelineRunName, namespaceToUse, saName, pipeline, v1alpha1.PipelineTriggerTypeManual, resources)
 
 	fmt.Printf("Creating a new PipelineRun named %s \n", generatedPipelineRunName)
@@ -240,7 +219,7 @@ func submitBuild(buildInformation BuildInformation, r Resource) {
 	}
 }
 
-// HandleWebhook does some fun stuff when we get an event
+// HandleWebhook triggers a pipelinerun when a github event is received
 // Todo provide proper responses e.g. 503, server errors, 200 if good
 func (r Resource) HandleWebhook(request *restful.Request, response *restful.Response) {
 	fmt.Println("In handleWebhook code with error handling for github event")
