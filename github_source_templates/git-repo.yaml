@@ -48,6 +48,6 @@ spec:
   sink:
     apiVersion: serving.knative.dev/v1alpha1
     kind: Service
-  name: github-event-pipeline
-  # The below can be specified if using a git provider other than github.com
-  # githubAPIURL: "https://github.ibm.com/api/v3/"
+    name: github-event-pipeline
+# The below can be specified if using a git provider other than github.com
+# githubAPIURL: "https://github.ibm.com/api/v3/"
