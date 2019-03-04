@@ -11,7 +11,7 @@
 FROM golang:1.10 as builder
 USER root
 RUN curl -fsSL -o /usr/local/bin/dep https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 && chmod +x /usr/local/bin/dep
-WORKDIR /go/src/github.ibm.com/swiss-cloud/devops-back-end/
+WORKDIR /go/src/github.com/a-roberts/knative-pipeline-runner/
 COPY . .
 #RUN dep ensure  
 RUN dep ensure -vendor-only 
@@ -22,8 +22,8 @@ RUN addgroup -g 1000 mcgroup && \
   adduser -G mcgroup -u 1000 -D -S mcuser
 USER 1000
 
-WORKDIR /go/src/github.ibm.com/swiss-cloud/devops-back-end/
-COPY --from=builder /go/src/github.ibm.com/swiss-cloud/devops-back-end/ .
+WORKDIR /go/src/github.com/a-roberts/knative-pipeline-runner/
+COPY --from=builder /go/src/github.com/a-roberts/knative-pipeline-runner/ .
 
 ENTRYPOINT ["./app"]
 

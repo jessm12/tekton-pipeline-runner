@@ -3,7 +3,7 @@ kind: Secret
 metadata:
   name: github-repo-access-secret
   annotations:
-    build.knative.dev/git-0: https://github.ibm.com # Change if github.com
+    build.knative.dev/git-0: https://github.com # Change if using different git provider
 type: kubernetes.io/basic-auth
 stringData:
   username: does_not_matter
@@ -48,4 +48,6 @@ spec:
   sink:
     apiVersion: serving.knative.dev/v1alpha1
     kind: Service
-name: github-event-pipeline
+  name: github-event-pipeline
+  # The below can be specified if using a git provider other than github.com
+  # githubAPIURL: "https://github.ibm.com/api/v3/"

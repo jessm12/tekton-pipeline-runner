@@ -46,7 +46,7 @@ type BuildInformation struct {
 type BuildRequest struct {
 	/* Example payload
 	{
-	  "repourl": "https://github.ibm.com/your-org/test-project",
+	  "repourl": "https://github.com/your-org/test-project",
 	  "commitid": "7d84981c66718ee2dda1af280f915cc2feb6ffow",
 	  "reponame": "test-project"
 	}

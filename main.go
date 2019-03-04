@@ -17,9 +17,9 @@ import (
 	"net/http"
 	"os"
 
+	pipelinerunner "github.com/a-roberts/knative-pipeline-runner"
 	restful "github.com/emicklei/go-restful"
 	clientset "github.com/knative/build-pipeline/pkg/client/clientset/versioned/typed/pipeline/v1alpha1"
-	pipelinerunner "github.ibm.com/swiss-cloud/devops-back-end/pipeline-runner"
 	k8sclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

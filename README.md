@@ -14,13 +14,13 @@ Example code to create Knative pipelines and resources (currently just a git and
 ### Using the event handler
 - Replace `event-handler/github-event-handler.yml` contents to point to your image
 
+### Run the event handler
+- `kubectl apply -f event-handler/github-event-handler.yml`
+
 ### Setting up a webhook
 - Modify `github_source_templates/git-repo.yaml`, referencing your own secrets and repository to create a webhook for
 - `kubectl apply -f github_source_templates/git-repo.yaml`
 - Check the webhook was created successfully
-
-### Run the event handler
-- `kubectl apply -f event-handler/github-event-handler.yml`
 
 ### Watch it all run
 - Push code to your repository
