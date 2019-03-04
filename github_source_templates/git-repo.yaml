@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-repo-access-secret
+  annotations:
+    build.knative.dev/git-0: https://github.ibm.com # Change if github.com
+type: kubernetes.io/basic-auth
+stringData:
+  username: does_not_matter
+  password: YOUR_GITHUB_ACCESS_TOKEN
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default # Change if using a different service account
+secrets:
+  - name: github-repo-access-secret
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-webhook-secret
+type: Opaque
+stringData:
+  accessToken: YOUR_GITHUB_ACCESS_TOKEN
+  secretToken: A_RANDOM_STRING_HERE # This really is arbitrary
+
+---
+apiVersion: sources.eventing.knative.dev/v1alpha1
+kind: GitHubSource
+metadata:
+  name: github-event-source-GITHUB_REPO_NAME
+spec:
+  eventTypes:
+    - push
+    - pull_request
+  ownerAndRepository: GITHUB_OWNER/GITHUB_REPO_NAME
+  accessToken:
+    secretKeyRef:
+      name: github-webhook-secret
+      key: accessToken
+  secretToken:
+    secretKeyRef:
+      name: github-webhook-secret
+      key: secretToken
+  sink:
+    apiVersion: serving.knative.dev/v1alpha1
+    kind: Service
+name: github-event-pipeline
