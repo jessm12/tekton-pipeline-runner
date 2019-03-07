@@ -1,5 +1,7 @@
 # knative-pipeline-runner
 
+Example code to create Knative pipelines and resources (currently just a git and image resource with unique names) dynamically, for example in response to receiving a Github webhook event such as a push.
+
 ## Prerequisites
 
 - Docker for Mac - switch to edge version
