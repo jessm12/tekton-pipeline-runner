@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Licensed Materials - Property of IBM
+ * "Restricted Materials of IBM"
+ *
+ * Copyright IBM Corp. 2018 All Rights Reserved
+ *
+ * US Government Users Restricted Rights - Use, duplication or disclosure
+ * restricted by GSA ADP Schedule Contract with IBM Corp.
+ *******************************************************************************/
+
 package endpoints
 
 import (
@@ -5,10 +15,12 @@ import (
 	"strconv"
 	"time"
 
+	"os"
+
 	restful "github.com/emicklei/go-restful"
 	v1alpha1 "github.com/knative/build-pipeline/pkg/apis/pipeline/v1alpha1"
 	clientset "github.com/knative/build-pipeline/pkg/client/clientset/versioned/typed/pipeline/v1alpha1"
-	duckv1alpha1 "github.com/knative/pkg/apis/duck/v1alpha1"
+	logging "github.ibm.com/swiss-cloud/devops-back-end/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sclientset "k8s.io/client-go/kubernetes"
 
@@ -23,7 +35,7 @@ type Resource struct {
 	K8sClient      *k8sclientset.Clientset
 }
 
-//BuildInformation - information required to build a particular commit from a Git repository
+//BuildInformation - information required to build a particular commit from a Git repository.
 type BuildInformation struct {
 	REPOURL   string
 	SHORTID   string
@@ -36,7 +48,7 @@ type BuildInformation struct {
 type BuildRequest struct {
 	/* Example payload
 	{
-	  "repourl": "https://github.com/your-org/test-project",
+	  "repourl": "https://github.ibm.com/your-org/test-project",
 	  "commitid": "7d84981c66718ee2dda1af280f915cc2feb6ffow",
 	  "reponame": "test-project"
 	}
@@ -47,6 +59,7 @@ type BuildRequest struct {
 	BRANCH   string `json:"branch"`
 }
 
+// RegisterWebhook ...
 func (r Resource) RegisterWebhook(container *restful.Container) {
 	ws := new(restful.WebService)
 	ws.
@@ -57,36 +70,22 @@ func (r Resource) RegisterWebhook(container *restful.Container) {
 	container.Add(ws)
 }
 
-func (r Resource) handleManualBuildRequest(request *restful.Request, response *restful.Response) {
-	requestData := BuildRequest{}
+/* Get all pipelines in a given namespace: the caller needs to handle any errors */
+func (r Resource) getPipeline(name, namespace string) (v1alpha1.Pipeline, error) {
+	logging.Log.Debugf("in getPipeline, name %s, namespace %s \n", name, namespace)
 
-	if err := request.ReadEntity(&requestData); err != nil {
-		fmt.Printf("An error occurred decoding the manual build request body: %s", err)
-		return
-	}
-
-	id := ""
-	shortid := ""
-	if requestData.COMMITID != "" {
-		id = requestData.COMMITID
-		shortid = requestData.COMMITID[0:7]
+	pipelines := r.PipelineClient.Pipelines(namespace)
+	pipeline, err := pipelines.Get(name, metav1.GetOptions{})
+	if err != nil {
+		logging.Log.Errorf("could not retrieve the pipeline called %s in namespace %s", name, namespace)
+		return *pipeline, err
 	} else {
-		id = requestData.BRANCH
-		shortid = "latest"
+		logging.Log.Debugf("Found the pipeline definition OK")
 	}
-
-	timestamp := getDateTimeAsString()
-	buildInformation := BuildInformation{}
-	buildInformation.REPOURL = requestData.REPOURL
-	buildInformation.SHORTID = shortid
-	buildInformation.COMMITID = id
-	buildInformation.REPONAME = requestData.REPONAME
-	buildInformation.TIMESTAMP = timestamp
-
-	fmt.Printf("Handling manual build request, build information: \n %s", buildInformation)
-	submitBuild(buildInformation, r)
+	return *pipeline, nil
 }
 
+/* Create a new PipelineResource: this should be of type git or image */
 func definePipelineResource(name, namespace string, params []v1alpha1.Param, resourceType v1alpha1.PipelineResourceType) *v1alpha1.PipelineResource {
 	pipelineResource := v1alpha1.PipelineResource{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
@@ -99,12 +98,11 @@ func definePipelineResource(name, namespace string, params []v1alpha1.Param, res
 	return resourcePointer
 }
 
+/* Create a new PipelineResource: this should be of type git or image */
 func definePipelineRun(pipelineRunName, namespace, saName string,
 	pipeline v1alpha1.Pipeline,
 	triggerType v1alpha1.PipelineTriggerType,
 	resourceBinding []v1alpha1.PipelineResourceBinding) *v1alpha1.PipelineRun {
-
-	startTime := time.Now()
 
 	pipelineRunData := v1alpha1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -123,11 +121,6 @@ func definePipelineRun(pipelineRunName, namespace, saName string,
 			Timeout:        &metav1.Duration{Duration: 1 * time.Hour},
 			Resources:      resourceBinding,
 		},
-
-		Status: v1alpha1.PipelineRunStatus{
-			Conditions: []duckv1alpha1.Condition{{Type: duckv1alpha1.ConditionReady}},
-			StartTime:  &metav1.Time{Time: startTime},
-		},
 	}
 	pipelineRunPointer := &pipelineRunData
 	return pipelineRunPointer
@@ -137,58 +130,49 @@ func getDateTimeAsString() string {
 	return strconv.FormatInt(time.Now().Unix(), 10)
 }
 
-// Caller needs to handle error and not pipeline ref being valid
-func (r Resource) getPipeline(name, namespace string) (v1alpha1.Pipeline, error) {
-	fmt.Printf("In getPipeline, name %s, namespace %s \n", name, namespace)
-
-	pipelines := r.PipelineClient.Pipelines(namespace)
-	pipeline, err := pipelines.Get(name, metav1.GetOptions{})
-	if err != nil {
-		fmt.Printf("Couldn't retrieve the pipeline called %s in namespace %s", name, namespace)
-		return *pipeline, err
-	} else {
-		fmt.Println("Found the pipeline definition OK")
-	}
-	return *pipeline, nil
-}
-
-func submitBuild(buildInformation BuildInformation, r Resource) {
-	fmt.Println("In submitBuild")
+/* This is the main flow that handles building and deploying: given everything we need to kick off a build, do so */
+func createPipelineRunFromWebhookData(buildInformation BuildInformation, r Resource) {
+	logging.Log.Debugf("In createPipelineRunFromWebhookData, build information: %s", buildInformation)
+	// Todo should these be parameterised? Non-default namespace support and then RBAC/roles/bindings etc
 	namespaceToUse := "default"
 	saName := "default"
 
-	startTime := time.Now().Unix()
+	startTime := getDateTimeAsString()
 
-	// Assumes you've already applied the yaml and the pipeline
-	generatedPipelineRunName := fmt.Sprintf("devops-pipeline-run-%d", startTime)
+	// Assumes you've already applied the yaml: so the pipeline definition and its tasks exist
+	generatedPipelineRunName := fmt.Sprintf("devops-pipeline-run-%s", startTime)
 
 	pipelineTemplateName := "simple-pipeline"
 	pipelineNs := "default"
 
-	// As these are dynamically created and unique, we need to modify the pipeline resource spec names to use them
-	// We can't create resources that already exist (even if the fields differ, we need unique names)
-	imageResourceName := fmt.Sprintf("docker-image-%d", startTime)
-	gitResourceName := fmt.Sprintf("git-source-%d", startTime)
+	// Unique names
+	imageResourceName := fmt.Sprintf("docker-image-%s", startTime)
+	gitResourceName := fmt.Sprintf("git-source-%s", startTime)
 
 	pipeline, err := r.getPipeline(pipelineTemplateName, pipelineNs)
 	if err != nil {
-		fmt.Printf("Couldn't find the pipeline template %s in namespace %s \n", pipelineTemplateName, pipelineNs)
+		logging.Log.Errorf("could not find the pipeline template %s in namespace %s", pipelineTemplateName, pipelineNs)
 		return
 	} else {
-		fmt.Printf("Found the pipeline template %s OK \n", pipelineTemplateName)
+		logging.Log.Debugf("Found the pipeline template %s OK", pipelineTemplateName)
 	}
 
-	fmt.Println("Creating resources next...")
+	logging.Log.Debug("Creating PipelineResources next...")
 
-	urlToUse := fmt.Sprintf("host.docker.internal:5000/knative/%s:%s", buildInformation.REPONAME, buildInformation.SHORTID)
+	// This is building and pushing to the local registry only - this would be useful to expose as a parameter
+	// so we can push to a different image registry. Should it be an env var we pass through in the pod definition?
+
+	registryURL := os.Getenv("DOCKER_REGISTRY_LOCATION")
+	urlToUse := fmt.Sprintf("%s/%s:%s", registryURL, buildInformation.REPONAME, buildInformation.SHORTID)
+	logging.Log.Infof("Pushing the image to %s", urlToUse)
 
 	paramsForImageResource := []v1alpha1.Param{{Name: "url", Value: urlToUse}}
 	pipelineImageResource := definePipelineResource(imageResourceName, pipelineNs, paramsForImageResource, "image")
 	createdPipelineImageResource, err := r.PipelineClient.PipelineResources(pipelineNs).Create(pipelineImageResource)
 	if err != nil {
-		fmt.Printf("Could not create pipeline image resource to be used in the pipeline, error: %s", err)
+		logging.Log.Errorf("could not create pipeline image resource to be used in the pipeline, error: %s", err)
 	} else {
-		fmt.Printf("Created pipeline image resource %s successfully \n", createdPipelineImageResource.Name)
+		logging.Log.Infof("Created pipeline image resource %s successfully", createdPipelineImageResource.Name)
 	}
 
 	paramsForGitResource := []v1alpha1.Param{{Name: "revision", Value: buildInformation.COMMITID}, {Name: "url", Value: buildInformation.REPOURL}}
@@ -196,9 +180,9 @@ func submitBuild(buildInformation BuildInformation, r Resource) {
 	createdPipelineGitResource, err := r.PipelineClient.PipelineResources(pipelineNs).Create(pipelineGitResource)
 
 	if err != nil {
-		fmt.Printf("Could not create pipeline git resource to be used in the pipeline, error: %s \n", err)
+		logging.Log.Errorf("could not create pipeline git resource to be used in the pipeline, error: %s", err)
 	} else {
-		fmt.Printf("Created pipeline git resource %s successfully \n", createdPipelineGitResource.Name)
+		logging.Log.Infof("Created pipeline git resource %s successfully", createdPipelineGitResource.Name)
 	}
 
 	gitResourceRef := v1alpha1.PipelineResourceRef{Name: gitResourceName}
@@ -206,44 +190,44 @@ func submitBuild(buildInformation BuildInformation, r Resource) {
 
 	resources := []v1alpha1.PipelineResourceBinding{{Name: "docker-image", ResourceRef: imageResourceRef}, {Name: "git-source", ResourceRef: gitResourceRef}}
 
-	// PipelineRun yaml defines references to resources by name
+	// PipelineRun yaml defines references to resources
 	pipelineRunData := definePipelineRun(generatedPipelineRunName, namespaceToUse, saName, pipeline, v1alpha1.PipelineTriggerTypeManual, resources)
 
-	fmt.Printf("Creating a new PipelineRun named %s \n", generatedPipelineRunName)
+	logging.Log.Infof("Creating a new PipelineRun named %s", generatedPipelineRunName)
 
 	pipelineRun, err := r.PipelineClient.PipelineRuns(pipelineNs).Create(pipelineRunData)
 	if err != nil {
-		fmt.Printf("Error creating the PipelineRun: %s \n", err)
+		logging.Log.Errorf("error creating the PipelineRun: %s", err)
 	} else {
-		fmt.Printf("PipelineRun created: %s \n", pipelineRun)
+		logging.Log.Infof("PipelineRun created: %s", pipelineRun)
 	}
 }
 
-// HandleWebhook triggers a pipelinerun when a github event is received
-// Todo provide proper responses e.g. 503, server errors, 200 if good
+// HandleWebhook should be called when we hit the / endpoint with webhook data. Todo provide proper responses e.g. 503, server errors, 200 if good
 func (r Resource) HandleWebhook(request *restful.Request, response *restful.Response) {
-	fmt.Println("In handleWebhook code with error handling for github event")
+	logging.Log.Debugf("In HandleWebhook code with error handling for a GitHub event")
 	buildInformation := BuildInformation{}
 
-	gitHubEventType := request.HeaderParameter("Ce-X-Github-Event")
+	githubEvent := "Ce-Github-Event"
+	gitHubEventType := request.HeaderParameter(githubEvent)
 
 	if len(gitHubEventType) < 1 {
-		fmt.Printf("Found header for the event type from Github is incompatible: we require it to at least contain slashes. It is: %s \n", gitHubEventType)
+		logging.Log.Errorf("found header (%s) exists but has no value! \n Request is: %s", githubEvent, request)
 		return
 	}
 
 	gitHubEventTypeString := strings.Replace(gitHubEventType, "\"", "", -1)
 
-	fmt.Printf("GitHub event type is %s \n", gitHubEventTypeString)
+	logging.Log.Debugf("GitHub event type is %s \n", gitHubEventTypeString)
 
 	timestamp := getDateTimeAsString()
 
 	if gitHubEventTypeString == "push" {
-		fmt.Println("Handling push event...")
+		logging.Log.Debugf("Handling a push event...")
 
 		webhookData := gh.PushPayload{}
 		if err := request.ReadEntity(&webhookData); err != nil {
-			fmt.Printf("An error occurred decoding webhook data: %s", err)
+			logging.Log.Errorf("an error occurred decoding webhook data: %s", err)
 			return
 		}
 
@@ -253,16 +237,16 @@ func (r Resource) HandleWebhook(request *restful.Request, response *restful.Resp
 		buildInformation.REPONAME = webhookData.Repository.Name
 		buildInformation.TIMESTAMP = timestamp
 
-		submitBuild(buildInformation, r)
-		fmt.Printf("Build information for repository %s:%s \n %s \n", buildInformation.REPOURL, buildInformation.SHORTID, buildInformation)
+		createPipelineRunFromWebhookData(buildInformation, r)
+		logging.Log.Debugf("Build information for repository %s:%s \n %s", buildInformation.REPOURL, buildInformation.SHORTID, buildInformation)
 
 	} else if gitHubEventTypeString == "pull_request" {
-		fmt.Println("Handling pull request event...")
+		logging.Log.Debugf("Handling a pull request event...")
 
 		webhookData := gh.PullRequestPayload{}
 
 		if err := request.ReadEntity(&webhookData); err != nil {
-			fmt.Printf("An error occurred decoding webhook data: %s", err)
+			logging.Log.Errorf("an error occurred decoding webhook data: %s", err)
 			return
 		}
 
@@ -272,10 +256,11 @@ func (r Resource) HandleWebhook(request *restful.Request, response *restful.Resp
 		buildInformation.REPONAME = webhookData.Repository.Name
 		buildInformation.TIMESTAMP = timestamp
 
-		submitBuild(buildInformation, r)
-		fmt.Printf("Build information for repository %s:%s \n %s \n", buildInformation.REPOURL, buildInformation.SHORTID, buildInformation)
+		createPipelineRunFromWebhookData(buildInformation, r)
+		logging.Log.Debugf("Build information for repository %s:%s \n %s \n", buildInformation.REPOURL, buildInformation.SHORTID, buildInformation)
 
 	} else {
-		fmt.Println("Event wasn't a push or pull event, no action will be taken")
+		logging.Log.Errorf("event wasn't a push or pull event, no action will be taken")
 	}
+
 }
