@@ -10,13 +10,7 @@ Example code to create Knative pipelines and resources (currently just a git and
     - Enable Kubernetes
     - A properly set up `GOPATH` (it is advised to use `$HOME/go`). The directory structure is important so that `ko` commands function as expected. Images should be built and made available at your `localhost:5000` Docker registry when `ko` is used. See [Gopath docs](https://github.com/golang/go/wiki/GOPATH) for details.
 
-- Set up a local docker registry and optionally a registry viewer:
-
-  ```
-  docker run -d --rm -p 5000:5000 --name registry-srv -e REGISTRY_STORAGE_DELETE_ENABLED=true registry:2
-
-  docker run -d --rm -p 8080:8080 --name registry-web --link registry-srv -e REGISTRY_URL=http://registry-srv:5000/v2 -e REGISTRY_NAME=localhost:5000 hyper/docker-registry-web
-  ```
+- An image registry to push your built application image and a registry to push images from `ko apply` commands in setting up Tekton Pipelines and Knative eventing-sources (setting up a local environment is outlined below with a local registry being used but remote registries are supported)
 
 ## Install Knative and Istio
 
@@ -38,6 +32,14 @@ kubectl apply --filename https://github.com/knative/serving/releases/download/v0
 If an error occurs, run this again (it takes a short time to ensure all CRDs exist).
 
 ## Set up your environment if you wish to run this locally
+
+- Set up a local docker registry and optionally a registry viewer:
+
+  ```
+  docker run -d --rm -p 5000:5000 --name registry-srv -e REGISTRY_STORAGE_DELETE_ENABLED=true registry:2
+
+  docker run -d --rm -p 8080:8080 --name registry-web --link registry-srv -e REGISTRY_URL=http://registry-srv:5000/v2 -e REGISTRY_NAME=localhost:5000 hyper/docker-registry-web
+  ```
 
 `export KO_DOCKER_REPO=localhost:5000/knative`
 
