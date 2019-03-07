@@ -11,7 +11,7 @@ Example code to create Knative PipelineRuns and resources (currently just git an
     - A properly set up `GOPATH` (it is advised to use `$HOME/go`). The directory structure is important so that `ko` commands function as expected. Images should be built and made available at your `localhost:5000` Docker registry when `ko` is used. See [Gopath docs](https://github.com/golang/go/wiki/GOPATH) for details.
 
 - A destination image registry to push your built application image to
-- A registry to push images as a result of `ko apply` below outlines using a [`local registry`](#local-enviroment-setup) 
+- A registry to push images as a result of `ko apply` - below outlines using a [local registry](#local-enviroment-setup) 
 
 ## Install Knative and Istio
 
