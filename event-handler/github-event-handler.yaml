@@ -10,4 +10,11 @@ spec:
           container:
             image: docker.io/<replace me>/github-event-handler
             tag: latest
-
+            env:
+              # Change this if you'd like the event handler to push to a different Docker registry
+              # which will require the use of additional secrets patched to be in use by the service account.
+              # Examples include IBM Cloud Private's registry (e.g. <myclustercadomain>:8500/my_namespace) and IBM's Container Registry Service (e.g. registry.eu-gb.bluemix.net/my_namespace).
+              # The default value here assumes you want to push to a locally deployed Docker registry.
+              # To use Dockerhub you should only specify your Dockerhub username as the value. A repository will be created as part of the image pushing process.
+            - name: DOCKER_REGISTRY_LOCATION
+              value: "host.docker.internal:5000/knative"
