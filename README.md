@@ -1,6 +1,6 @@
 # knative-pipeline-runner
 
-Example code to create Knative pipelines and resources (currently just a git and image resource with unique names) dynamically, for example in response to receiving a Github webhook event such as a push.
+Example code to create Knative PipelineRuns and resources (currently just git and image PipelineResources with unique names) dynamically, for example in response to receiving a Github webhook event such as a push.
 
 ## Prerequisites
 
