@@ -3,7 +3,7 @@ kind: Secret
 metadata:
   name: github-repo-access-secret
   annotations:
-    build.knative.dev/git-0: https://github.com # Change if using different git provider
+    tekton.dev/git-0: https://github.com # Change if using different git provider
 type: kubernetes.io/basic-auth
 stringData:
   username: does_not_matter
