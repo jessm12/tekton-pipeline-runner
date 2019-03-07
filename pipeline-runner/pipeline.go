@@ -17,10 +17,10 @@ import (
 
 	"os"
 
+	logging "github.com/a-roberts/knative-pipeline-runner/logging"
 	restful "github.com/emicklei/go-restful"
 	v1alpha1 "github.com/knative/build-pipeline/pkg/apis/pipeline/v1alpha1"
 	clientset "github.com/knative/build-pipeline/pkg/client/clientset/versioned/typed/pipeline/v1alpha1"
-	logging "github.ibm.com/swiss-cloud/devops-back-end/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sclientset "k8s.io/client-go/kubernetes"
 

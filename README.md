@@ -10,7 +10,8 @@ Example code to create Knative PipelineRuns and resources (currently just git an
     - Enable Kubernetes
     - A properly set up `GOPATH` (it is advised to use `$HOME/go`). The directory structure is important so that `ko` commands function as expected. Images should be built and made available at your `localhost:5000` Docker registry when `ko` is used. See [Gopath docs](https://github.com/golang/go/wiki/GOPATH) for details.
 
-- An image registry to push your built application image and a registry to push images from `ko apply` commands in setting up Tekton Pipelines and Knative eventing-sources (setting up a local environment is outlined below with a local registry being used but remote registries are supported)
+- A destination image registry to push your built application image to
+- A registry to push images as a result of `ko apply` below outlines using a [`local registry`](#local-enviroment-setup) 
 
 ## Install Knative and Istio
 
@@ -31,7 +32,7 @@ kubectl apply --filename https://github.com/knative/serving/releases/download/v0
 
 If an error occurs, run this again (it takes a short time to ensure all CRDs exist).
 
-## Set up your environment if you wish to run this locally
+## Local enviroment setup
 
 - Set up a local docker registry and optionally a registry viewer:
 

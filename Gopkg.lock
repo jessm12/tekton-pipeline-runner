@@ -113,14 +113,6 @@
   revision = "0c5108395e2debce0d731cf0287ddf7242066aba"
 
 [[projects]]
-  digest = "1:ca59b1175189b3f0e9f1793d2c350114be36eaabbe5b9f554b35edee1de50aea"
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "a7962380ca08b5a188038c69871b8d3fbdf31e89"
-  version = "v1.7.0"
-
-[[projects]]
   digest = "1:878f0defa9b853f9acfaf4a162ba450a89d0050eff084f9fe7f5bd15948f172a"
   name = "github.com/gregjones/httpcache"
   packages = [
@@ -190,7 +182,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:399ea856508e7bc75d632bd996ed5520495ea9fd38e42b25434ee99be3356408"
+  digest = "1:8a71eeee682340f9b268dfd766021d08724ba81b2e00ffafcf2445c801ed8c88"
   name = "github.com/knative/pkg"
   packages = [
     "apis",
@@ -201,6 +193,7 @@
     "kmp",
     "logging",
     "logging/logkey",
+    "test/logging",
     "webhook",
   ]
   pruneopts = "UT"
@@ -281,6 +274,26 @@
   pruneopts = "UT"
   revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
   version = "v1.0.1"
+
+[[projects]]
+  digest = "1:3984cbf90dbd943bb9ded6e6187c528099b1941a7d68703f851494b106df3137"
+  name = "go.opencensus.io"
+  packages = [
+    ".",
+    "exemplar",
+    "internal",
+    "internal/tagencoding",
+    "stats",
+    "stats/internal",
+    "stats/view",
+    "tag",
+    "trace",
+    "trace/internal",
+    "trace/tracestate",
+  ]
+  pruneopts = "UT"
+  revision = "f305e5c4e2cf345eba88de13d10de1126fa45a61"
+  version = "v0.19.1"
 
 [[projects]]
   digest = "1:777e729b475d3895c7229552aa10076f0d177daf37c0a72258006d046d329960"
@@ -560,12 +573,10 @@
   analyzer-version = 1
   input-imports = [
     "github.com/emicklei/go-restful",
-    "github.com/gorilla/mux",
     "github.com/knative/build-pipeline/pkg/apis/pipeline/v1alpha1",
     "github.com/knative/build-pipeline/pkg/client/clientset/versioned/typed/pipeline/v1alpha1",
-    "github.com/knative/pkg/apis/duck/v1alpha1",
+    "github.com/knative/pkg/test/logging",
     "gopkg.in/go-playground/webhooks.v3/github",
-    "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/rest",
