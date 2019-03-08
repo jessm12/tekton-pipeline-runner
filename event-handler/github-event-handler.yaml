@@ -10,4 +10,9 @@ spec:
           container:
             image: docker.io/<replace me>/github-event-handler
             tag: latest
-
+            env:
+              # Change this if you'd like the event handler to push your built image to a different Docker registry
+              # which will require the use of additional secrets patched to be in use by the service account.
+              # To use Dockerhub you should only specify your Dockerhub username as the value. A repository will be created as part of the image pushing process.
+            - name: DOCKER_REGISTRY_LOCATION
+              value: <Dockerhub username>

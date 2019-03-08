@@ -28,10 +28,3 @@ spec:
         resource: git-source 
       - name: image-out
         resource: docker-image
-  - name: print-endpoint
-    taskRef:
-      name: print-endpoint-task
-    resources:
-      inputs: 
-      - name: git-source
-        resource: git-source

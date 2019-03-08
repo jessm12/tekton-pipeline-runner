@@ -11,22 +11,17 @@ spec:
       type: image
   steps:
   - name: modify-yaml
-    image: alpine
-    command: ['sed']
-    args: 
-    - '-i.bak'
-    - 's!image:.*!image: ${inputs.resources.image-out.url}!g'
-    - '/workspace/git-source/config/deployment.yaml'
-  - name: check
-    image: alpine
-    command: ['cat']
-    args: 
-    - '/workspace/git-source/config/deployment.yaml'
+    image: ubuntu
+    command: ['/bin/bash']
+    args: ['-c', 'find /workspace/git-source/config -type f -exec sed -i -e s!"image: PIPELINE_REPLACE:latest"!"image: ${IMG}"!g {} \;']
+    env:
+      - name: IMG
+        value: ${inputs.resources.image-out.url}
   - name: install-new
     image: lachlanevenson/k8s-kubectl
     command: ['kubectl']
     args: 
     - 'apply'
     - '-f'
-    - '/workspace/git-source/config'
+- '/workspace/git-source/config'
     
